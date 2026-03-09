@@ -211,3 +211,74 @@ event RewardBpsUpdated(uint256 previousBps, uint256 newBps);
 event DomainSeparatorUpdated(bytes32 previousSeparator, bytes32 newSeparator);
 event GenesisBlockUpdated(uint256 previousBlock, uint256 newBlock);
 event NonceUpdated(bytes32 previousNonce, bytes32 newNonce);
+event SignatureUpdated(bytes previousSignature, bytes newSignature);
+event DeadlineUpdated(uint256 previousDeadline, uint256 newDeadline);
+event PathUpdated(address[] previousPath, address[] newPath);
+event AmountInUpdated(uint256 previousAmountIn, uint256 newAmountIn);
+event AmountOutMinUpdated(uint256 previousAmountOutMin, uint256 newAmountOutMin);
+event RecipientUpdated(address previousRecipient, address newRecipient);
+event SenderUpdated(address previousSender, address newSender);
+event TokenUpdated(address previousToken, address newToken);
+event StrategyUpdated(uint256 previousStrategyId, uint256 newStrategyId);
+event RoundUpdated(uint256 previousRoundId, uint256 newRoundId);
+event AgentUpdated(address previousAgent, address newAgent);
+event TaskHashUpdated(bytes32 previousTaskHash, bytes32 newTaskHash);
+event CapabilityIdUpdated(bytes32 previousCapabilityId, bytes32 newCapabilityId);
+event PriorityUpdated(uint8 previousPriority, uint8 newPriority);
+event AttesterUpdated(address previousAttester, address newAttester);
+event RequesterUpdated(address previousRequester, address newRequester);
+event ExecutorUpdated(address previousExecutor, address newExecutor);
+
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+
+uint256 constant WOMBLEDEV_BPS_BASE = 10_000;
+uint256 constant WOMBLEDEV_MAX_SLIPPAGE_BPS = 500;
+uint256 constant WOMBLEDEV_MIN_PATH_LEN = 2;
+uint256 constant WOMBLEDEV_MAX_PATH_LEN = 5;
+uint256 constant WOMBLEDEV_CLAW_EPOCH_SECS = 86400;
+uint256 constant WOMBLEDEV_MAX_ALLOC_PER_EPOCH_WEI = 100 ether;
+uint256 constant WOMBLEDEV_WITHDRAW_CAP_WEI = 50 ether;
+uint256 constant WOMBLEDEV_MIN_STAKE_WEI = 0.1 ether;
+uint256 constant WOMBLEDEV_MAX_POSITIONS_PER_USER = 32;
+uint256 constant WOMBLEDEV_COOLDOWN_BLOCKS = 12;
+uint256 constant WOMBLEDEV_MAX_PAYLOAD_BYTES = 4096;
+uint256 constant WOMBLEDEV_UPGRADE_MIN_DELAY_BLOCKS = 100;
+uint256 constant WOMBLEDEV_DEFAULT_FEE_BPS = 30;
+uint256 constant WOMBLEDEV_DEFAULT_REWARD_BPS = 50;
+uint256 constant WOMBLEDEV_LIQUIDATION_THRESHOLD_BPS = 8500;
+uint256 constant WOMBLEDEV_HEALTH_FACTOR_MIN_BPS = 10000;
+uint256 constant WOMBLEDEV_GENESIS_SALT = 0x4a7c2e9f1b3d5e8a0c4f6b2d8e1a3c5f7b9d0e2a4c6e8f0b2d4a6c8e0f2a4b6d8e;
+uint256 constant WOMBLEDEV_ROUND_MIN_DURATION = 3;
+uint256 constant WOMBLEDEV_MAX_CONFIDENCE_TIER = 7;
+uint256 constant WOMBLEDEV_TASK_QUEUE_CAP = 256;
+uint256 constant WOMBLEDEV_CAPABILITY_SLOTS = 16;
+uint256 constant WOMBLEDEV_EXECUTION_COOLDOWN_BLOCKS = 5;
+uint256 constant WOMBLEDEV_REWARD_BASIS_POINTS = 100;
+uint256 constant WOMBLEDEV_DOMAIN_TAG = 0x6b8d2f1a4c7e9b0d3f6a8c1e4b7d0a3c6e9f2b5d8a1c4e7b0d3f6a9c2e5b8d1f4a;
+
+// -----------------------------------------------------------------------------
+// Structs
+// -----------------------------------------------------------------------------
+
+struct WombleDevOrder {
+    address tokenIn;
+    address tokenOut;
+    uint256 amountIn;
+    uint256 amountOutMin;
+    uint256 deadline;
+    bool filled;
+    bool cancelled;
+    uint256 placedAtBlock;
+}
+
+struct WombleDevStrategy {
+    uint256 allocCapWei;
+    uint256 allocUsedWei;
+    uint256 tickEpoch;
+    uint256 lastTickBlock;
+    bool sealed;
+    bool active;
+    uint8 confidenceTier;
+}
