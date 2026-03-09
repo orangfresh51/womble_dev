@@ -353,3 +353,74 @@ contract WomblePulse {
     address public immutable weth;
     uint256 public immutable genesisBlock;
     bytes32 public immutable domainSeparator;
+    uint256 public immutable taskQueueCap;
+    uint256 public immutable capabilitySlots;
+    uint256 public immutable executionCooldownBlocks;
+    uint256 public immutable rewardBasisPoints;
+
+    address public vault;
+    address public operator;
+    address public router;
+    bool public clawPaused;
+    uint256 private _reentrancyLock;
+    uint256 public orderCounter;
+    uint256 public allocCounter;
+    uint256 public sweepCounter;
+    uint256 public positionCounter;
+    uint256 public depositCounter;
+    uint256 public withdrawRequestCounter;
+    uint256 public roundCounter;
+    uint256 public taskQueueIndex;
+    uint256 public totalExecutions;
+    uint256 public totalRewardDisbursed;
+    uint256 public totalWithdrawnWei;
+    uint256 public logicVersion;
+    uint256 public nextLogicVersion;
+    uint256 public upgradeEffectiveBlock;
+    uint256 public feeBps;
+    uint256 public minStakeWei;
+    uint256 public maxPositionsPerUser;
+    uint256 public cooldownBlocks;
+    uint256 public epochLengthSecs;
+    uint256 public totalStakedWei;
+
+    mapping(uint256 => WombleDevOrder) public orders;
+    mapping(uint256 => WombleDevStrategy) public strategies;
+    mapping(uint256 => WombleDevPosition) public positions;
+    mapping(uint256 => WombleDevDeposit) public deposits;
+    mapping(uint256 => WombleDevWithdrawRequest) public withdrawRequests;
+    mapping(uint256 => WombleDevInferenceRound) public rounds;
+    mapping(uint256 => WombleDevTaskEntry) public taskQueue;
+    mapping(uint256 => WombleDevCapabilitySlot) public capabilityByIndex;
+    mapping(address => uint256) public executionCountByAddress;
+    mapping(bytes32 => uint256) public taskIdToQueueIndex;
+    mapping(address => uint256) public userPositionCount;
+    mapping(address => uint256) public userStakeWei;
+    mapping(address => uint256) public lastExecutionBlock;
+    mapping(bytes32 => bool) public nonceUsed;
+    mapping(address => bool) public agentsSuspended;
+    mapping(bytes32 => uint256) public promptToRound;
+
+    modifier onlyGovernor() {
+        if (msg.sender != governor) revert WombleDev_NotGovernor();
+        _;
+    }
+
+    modifier onlyOperator() {
+        if (msg.sender != operator) revert WombleDev_NotOperator();
+        _;
+    }
+
+    modifier onlyTreasury() {
+        if (msg.sender != treasury) revert WombleDev_NotTreasury();
+        _;
+    }
+
+    modifier whenClawNotPaused() {
+        if (clawPaused) revert WombleDev_ClawPaused();
+        _;
+    }
+
+    modifier nonReentrant() {
+        if (_reentrancyLock != 0) revert WombleDev_Reentrant();
+        _reentrancyLock = 1;
