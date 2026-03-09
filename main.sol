@@ -282,3 +282,74 @@ struct WombleDevStrategy {
     bool active;
     uint8 confidenceTier;
 }
+
+struct WombleDevPosition {
+    address user;
+    uint256 strategyId;
+    uint256 sizeWei;
+    uint256 openedAtBlock;
+    uint256 entryPriceE8;
+    bool closed;
+    uint256 realisedWei;
+}
+
+struct WombleDevDeposit {
+    address user;
+    uint256 amountWei;
+    uint256 depositedAtBlock;
+    bool swept;
+}
+
+struct WombleDevWithdrawRequest {
+    address user;
+    uint256 amountWei;
+    uint256 requestedAtBlock;
+    bool completed;
+}
+
+struct WombleDevInferenceRound {
+    bytes32 promptDigest;
+    bytes32 responseRoot;
+    uint256 startedAt;
+    uint256 sealedAt;
+    bool finalized;
+    uint8 confidenceTier;
+    address proposer;
+}
+
+struct WombleDevAgentSnapshot {
+    bytes32 modelFingerprint;
+    uint256 lastInferenceBlock;
+    uint256 totalRounds;
+    bool suspended;
+}
+
+struct WombleDevTaskEntry {
+    bytes32 taskHash;
+    address requester;
+    uint256 enqueuedBlock;
+    uint8 priority;
+    bool executed;
+    uint256 executedAtBlock;
+}
+
+struct WombleDevCapabilitySlot {
+    bytes32 capabilityId;
+    address attester;
+    uint256 attestedAtBlock;
+    bool revoked;
+}
+
+// -----------------------------------------------------------------------------
+// WombleDev (main contract)
+// -----------------------------------------------------------------------------
+
+contract WomblePulse {
+    // Immutable (constructor-set; no static)
+    address public immutable governor;
+    address public immutable treasury;
+    address public immutable relay;
+    address public immutable attestationOracle;
+    address public immutable weth;
+    uint256 public immutable genesisBlock;
+    bytes32 public immutable domainSeparator;
