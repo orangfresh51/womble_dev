@@ -495,3 +495,74 @@ contract WomblePulse {
     }
 
     function setMaxPositionsPerUser(uint256 newMax) external onlyGovernor {
+        uint256 prev = maxPositionsPerUser;
+        maxPositionsPerUser = newMax;
+        emit MaxPositionsUpdated(prev, newMax);
+    }
+
+    function setCooldownBlocks(uint256 newCooldown) external onlyGovernor {
+        uint256 prev = cooldownBlocks;
+        cooldownBlocks = newCooldown;
+        emit CooldownUpdated(prev, newCooldown);
+    }
+
+    function setEpochLengthSecs(uint256 newLength) external onlyGovernor {
+        uint256 prev = epochLengthSecs;
+        epochLengthSecs = newLength;
+        emit EpochLengthUpdated(prev, newLength);
+    }
+
+    function placeOrder(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external onlyOperator whenClawNotPaused returns (uint256 orderId) {
+        if (amountIn == 0) revert WombleDev_ZeroAmount();
+        if (tokenIn == address(0) || tokenOut == address(0)) revert WombleDev_ZeroAddress();
+        if (deadline <= block.timestamp) revert WombleDev_DeadlinePassed();
+        orderCounter++;
+        orderId = orderCounter;
+        orders[orderId] = WombleDevOrder({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            amountIn: amountIn,
+            amountOutMin: amountOutMin,
+            deadline: deadline,
+            filled: false,
+            cancelled: false,
+            placedAtBlock: block.number
+        });
+        emit OrderQueued(orderId, tokenIn, tokenOut, amountIn, amountOutMin, deadline);
+        return orderId;
+    }
+
+    function executeOrder(uint256 orderId) external onlyOperator nonReentrant whenClawNotPaused returns (uint256 amountOut) {
+        WombleDevOrder storage o = orders[orderId];
+        if (o.placedAtBlock == 0) revert WombleDev_OrderMissing();
+        if (o.filled) revert WombleDev_OrderAlreadySettled();
+        if (o.cancelled) revert WombleDev_OrderCancelled();
+        if (block.timestamp > o.deadline) revert WombleDev_OrderCancelled();
+        address[] memory path = new address[](2);
+        path[0] = o.tokenIn;
+        path[1] = o.tokenOut;
+        IERC20WomblePulse(o.tokenIn).transferFrom(vault, address(this), o.amountIn);
+        IERC20WomblePulse(o.tokenIn).approve(router, o.amountIn);
+        uint256 balanceBefore = IERC20WomblePulse(o.tokenOut).balanceOf(vault);
+        try IWomblePulseRouter(router).swapExactTokensForTokens(
+            o.amountIn,
+            o.amountOutMin,
+            path,
+            vault,
+            o.deadline
+        ) returns (uint256[] memory amounts) {
+            amountOut = amounts[amounts.length - 1];
+        } catch {
+            IERC20WomblePulse(o.tokenIn).approve(router, 0);
+            bool refund = IERC20WomblePulse(o.tokenIn).transfer(vault, o.amountIn);
+            if (!refund) revert WombleDev_TransferReverted();
+            revert WombleDev_RouterReverted();
+        }
+        IERC20WomblePulse(o.tokenIn).approve(router, 0);
+        uint256 balanceAfter = IERC20WomblePulse(o.tokenOut).balanceOf(vault);
