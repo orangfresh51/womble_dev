@@ -1134,3 +1134,74 @@ contract WomblePulse {
         if (amountIn == 0) revert WombleDev_ZeroAmount();
         if (deadline <= block.timestamp) revert WombleDev_DeadlinePassed();
         for (uint256 i = 0; i < path.length; i++) {
+            if (path[i] == address(0)) revert WombleDev_ZeroAddress();
+        }
+        orderCounter++;
+        orderId = orderCounter;
+        orders[orderId] = WombleDevOrder({
+            tokenIn: path[0],
+            tokenOut: path[path.length - 1],
+            amountIn: amountIn,
+            amountOutMin: amountOutMin,
+            deadline: deadline,
+            filled: false,
+            cancelled: false,
+            placedAtBlock: block.number
+        });
+        emit OrderQueued(orderId, path[0], path[path.length - 1], amountIn, amountOutMin, deadline);
+        return orderId;
+    }
+
+    function getContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getVaultBalance() external view returns (uint256) {
+        return address(vault).balance;
+    }
+
+    function getTokenBalanceInVault(address token) external view returns (uint256) {
+        if (token == address(0)) return address(vault).balance;
+        return IERC20WomblePulse(token).balanceOf(vault);
+    }
+
+    function getTokenBalanceInContract(address token) external view returns (uint256) {
+        if (token == address(0)) return address(this).balance;
+        return IERC20WomblePulse(token).balanceOf(address(this));
+    }
+
+    function isOrderFilled(uint256 orderId) external view returns (bool) {
+        return orders[orderId].filled;
+    }
+
+    function isOrderCancelled(uint256 orderId) external view returns (bool) {
+        return orders[orderId].cancelled;
+    }
+
+    function isStrategyActive(uint256 strategyId) external view returns (bool) {
+        return strategies[strategyId].active && !strategies[strategyId].sealed;
+    }
+
+    function isStrategySealed(uint256 strategyId) external view returns (bool) {
+        return strategies[strategyId].sealed;
+    }
+
+    function getUserPositionCount(address user) external view returns (uint256) {
+        return userPositionCount[user];
+    }
+
+    function getUserStakeWei(address user) external view returns (uint256) {
+        return userStakeWei[user];
+    }
+
+    function getLastExecutionBlock(address user) external view returns (uint256) {
+        return lastExecutionBlock[user];
+    }
+
+    function isNonceUsed(bytes32 nonce) external view returns (bool) {
+        return nonceUsed[nonce];
+    }
+
+    function isAgentSuspended(address agent) external view returns (bool) {
+        return agentsSuspended[agent];
+    }
