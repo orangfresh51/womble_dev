@@ -708,3 +708,74 @@ contract WomblePulse {
         userPositionCount[msg.sender]++;
         emit PositionOpened(msg.sender, positionId, sizeWei, strategyId);
         return positionId;
+    }
+
+    function closePosition(uint256 positionId, uint256 realisedWei) external nonReentrant {
+        WombleDevPosition storage p = positions[positionId];
+        if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
+        if (p.user != msg.sender && msg.sender != operator) revert WombleDev_ClawDenied();
+        if (p.closed) revert WombleDev_OrderAlreadySettled();
+        p.closed = true;
+        p.realisedWei = realisedWei;
+        userPositionCount[p.user]--;
+        emit PositionClosed(p.user, positionId, realisedWei);
+    }
+
+    function depositStake() external payable {
+        if (msg.value == 0) revert WombleDev_ZeroAmount();
+        userStakeWei[msg.sender] += msg.value;
+        totalStakedWei += msg.value;
+        emit StakeDeposited(msg.sender, msg.value);
+    }
+
+    function requestWithdrawStake(uint256 amountWei) external {
+        if (amountWei == 0) revert WombleDev_ZeroAmount();
+        if (userStakeWei[msg.sender] < amountWei) revert WombleDev_VaultInsufficient();
+        if (block.number < lastExecutionBlock[msg.sender] + cooldownBlocks) revert WombleDev_CooldownActive();
+        withdrawRequestCounter++;
+        withdrawRequests[withdrawRequestCounter] = WombleDevWithdrawRequest({
+            user: msg.sender,
+            amountWei: amountWei,
+            requestedAtBlock: block.number,
+            completed: false
+        });
+        emit WithdrawRequested(msg.sender, amountWei, withdrawRequestCounter);
+    }
+
+    function completeWithdrawRequest(uint256 requestId) external onlyOperator nonReentrant {
+        WombleDevWithdrawRequest storage r = withdrawRequests[requestId];
+        if (r.requestedAtBlock == 0) revert WombleDev_OrderMissing();
+        if (r.completed) revert WombleDev_OrderAlreadySettled();
+        if (userStakeWei[r.user] < r.amountWei) revert WombleDev_VaultInsufficient();
+        r.completed = true;
+        userStakeWei[r.user] -= r.amountWei;
+        totalStakedWei -= r.amountWei;
+        (bool sent,) = r.user.call{value: r.amountWei}("");
+        if (!sent) revert WombleDev_TransferReverted();
+        emit WithdrawCompleted(r.user, r.amountWei, requestId);
+    }
+
+    function recordDeposit() external payable returns (uint256 depositId) {
+        if (msg.value == 0) revert WombleDev_ZeroAmount();
+        depositCounter++;
+        depositId = depositCounter;
+        deposits[depositId] = WombleDevDeposit({
+            user: msg.sender,
+            amountWei: msg.value,
+            depositedAtBlock: block.number,
+            swept: false
+        });
+        emit DepositSwept(msg.sender, msg.value, depositId);
+        return depositId;
+    }
+
+    function getOrder(uint256 orderId) external view returns (
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 deadline,
+        bool filled,
+        bool cancelled,
+        uint256 placedAtBlock
+    ) {
