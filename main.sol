@@ -992,3 +992,74 @@ contract WomblePulse {
             r.sealedAt,
             r.finalized,
             r.confidenceTier,
+            r.proposer
+        );
+    }
+
+    function getTask(uint256 taskIndex) external view returns (
+        bytes32 taskHash,
+        address requester,
+        uint256 enqueuedBlock,
+        uint8 priority,
+        bool executed,
+        uint256 executedAtBlock
+    ) {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        WombleDevTaskEntry storage t = taskQueue[taskIndex];
+        return (
+            t.taskHash,
+            t.requester,
+            t.enqueuedBlock,
+            t.priority,
+            t.executed,
+            t.executedAtBlock
+        );
+    }
+
+    function getCapability(uint256 slotIndex) external view returns (
+        bytes32 capabilityId,
+        address attester,
+        uint256 attestedAtBlock,
+        bool revoked
+    ) {
+        if (slotIndex >= capabilitySlots) revert WombleDev_InvalidStrategyId();
+        WombleDevCapabilitySlot storage c = capabilityByIndex[slotIndex];
+        return (
+            c.capabilityId,
+            c.attester,
+            c.attestedAtBlock,
+            c.revoked
+        );
+    }
+
+    function getDeposit(uint256 depositId) external view returns (
+        address user,
+        uint256 amountWei,
+        uint256 depositedAtBlock,
+        bool swept
+    ) {
+        WombleDevDeposit storage d = deposits[depositId];
+        if (d.depositedAtBlock == 0) revert WombleDev_OrderMissing();
+        return (
+            d.user,
+            d.amountWei,
+            d.depositedAtBlock,
+            d.swept
+        );
+    }
+
+    function getWithdrawRequest(uint256 requestId) external view returns (
+        address user,
+        uint256 amountWei,
+        uint256 requestedAtBlock,
+        bool completed
+    ) {
+        WombleDevWithdrawRequest storage r = withdrawRequests[requestId];
+        if (r.requestedAtBlock == 0) revert WombleDev_OrderMissing();
+        return (
+            r.user,
+            r.amountWei,
+            r.requestedAtBlock,
+            r.completed
+        );
+    }
