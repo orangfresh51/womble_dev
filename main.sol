@@ -779,3 +779,74 @@ contract WomblePulse {
         bool cancelled,
         uint256 placedAtBlock
     ) {
+        WombleDevOrder storage o = orders[orderId];
+        if (o.placedAtBlock == 0) revert WombleDev_OrderMissing();
+        return (
+            o.tokenIn,
+            o.tokenOut,
+            o.amountIn,
+            o.amountOutMin,
+            o.deadline,
+            o.filled,
+            o.cancelled,
+            o.placedAtBlock
+        );
+    }
+
+    function getStrategy(uint256 strategyId) external view returns (
+        uint256 allocCapWei,
+        uint256 allocUsedWei,
+        uint256 tickEpoch,
+        uint256 lastTickBlock,
+        bool sealed,
+        bool active,
+        uint8 confidenceTier
+    ) {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        return (
+            s.allocCapWei,
+            s.allocUsedWei,
+            s.tickEpoch,
+            s.lastTickBlock,
+            s.sealed,
+            s.active,
+            s.confidenceTier
+        );
+    }
+
+    function getPosition(uint256 positionId) external view returns (
+        address user,
+        uint256 strategyId,
+        uint256 sizeWei,
+        uint256 openedAtBlock,
+        uint256 entryPriceE8,
+        bool closed,
+        uint256 realisedWei
+    ) {
+        WombleDevPosition storage p = positions[positionId];
+        if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
+        return (
+            p.user,
+            p.strategyId,
+            p.sizeWei,
+            p.openedAtBlock,
+            p.entryPriceE8,
+            p.closed,
+            p.realisedWei
+        );
+    }
+
+    function getOrderCount() external view returns (uint256) {
+        return orderCounter;
+    }
+
+    function getTotalWithdrawnWei() external view returns (uint256) {
+        return totalWithdrawnWei;
+    }
+
+    function getTotalStakedWei() external view returns (uint256) {
+        return totalStakedWei;
+    }
+
+    function withdrawStuckToken(address token, address to, uint256 amount) external onlyGovernor {
