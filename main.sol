@@ -921,3 +921,74 @@ contract WomblePulse {
     function enqueueTask(bytes32 taskHash, uint8 priority) external whenClawNotPaused returns (uint256 taskIndex) {
         if (taskQueueIndex >= taskQueueCap) revert WombleDev_AllocOverflow();
         taskQueue[taskQueueIndex] = WombleDevTaskEntry({
+            taskHash: taskHash,
+            requester: msg.sender,
+            enqueuedBlock: block.number,
+            priority: priority,
+            executed: false,
+            executedAtBlock: 0
+        });
+        taskIndex = taskQueueIndex;
+        taskQueueIndex++;
+        taskIdToQueueIndex[taskHash] = taskIndex;
+        emit TaskEnqueued(taskIndex, taskHash, msg.sender, priority);
+        return taskIndex;
+    }
+
+    function executeTask(uint256 taskIndex) external onlyOperator nonReentrant whenClawNotPaused {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        WombleDevTaskEntry storage t = taskQueue[taskIndex];
+        if (t.executed) revert WombleDev_OrderAlreadySettled();
+        if (block.number < lastExecutionBlock[tx.origin] + executionCooldownBlocks) revert WombleDev_CooldownActive();
+        t.executed = true;
+        t.executedAtBlock = block.number;
+        executionCountByAddress[tx.origin]++;
+        totalExecutions++;
+        lastExecutionBlock[tx.origin] = block.number;
+        emit TaskExecuted(taskIndex, block.number);
+    }
+
+    function attestCapability(uint256 slotIndex, bytes32 capabilityId) external {
+        if (slotIndex >= capabilitySlots) revert WombleDev_InvalidStrategyId();
+        WombleDevCapabilitySlot storage c = capabilityByIndex[slotIndex];
+        if (c.attestedAtBlock != 0 && !c.revoked) revert WombleDev_StrategySealed();
+        c.capabilityId = capabilityId;
+        c.attester = msg.sender;
+        c.attestedAtBlock = block.number;
+        c.revoked = false;
+        emit CapabilityAttested(slotIndex, capabilityId, msg.sender);
+    }
+
+    function revokeCapability(uint256 slotIndex) external onlyGovernor {
+        if (slotIndex >= capabilitySlots) revert WombleDev_InvalidStrategyId();
+        capabilityByIndex[slotIndex].revoked = true;
+        emit CapabilityRevoked(slotIndex, block.number);
+    }
+
+    function disburseReward(address to, uint256 amountWei) external onlyGovernor nonReentrant {
+        if (to == address(0)) revert WombleDev_ZeroAddress();
+        if (amountWei == 0) revert WombleDev_ZeroAmount();
+        (bool sent,) = to.call{value: amountWei}("");
+        if (!sent) revert WombleDev_TransferReverted();
+        totalRewardDisbursed += amountWei;
+        emit RewardDisbursed(to, amountWei);
+    }
+
+    function getRound(uint256 roundId) external view returns (
+        bytes32 promptDigest,
+        bytes32 responseRoot,
+        uint256 startedAt,
+        uint256 sealedAt,
+        bool finalized,
+        uint8 confidenceTier,
+        address proposer
+    ) {
+        WombleDevInferenceRound storage r = rounds[roundId];
+        if (r.startedAt == 0) revert WombleDev_InvalidRoundId();
+        return (
+            r.promptDigest,
+            r.responseRoot,
+            r.startedAt,
+            r.sealedAt,
+            r.finalized,
+            r.confidenceTier,
