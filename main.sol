@@ -1418,3 +1418,74 @@ contract WomblePulse {
         uint256 defaultFeeBps,
         uint256 defaultRewardBps,
         uint256 liquidationThresholdBps,
+        uint256 healthFactorMinBps,
+        uint256 roundMinDuration,
+        uint256 maxConfidenceTier,
+        uint256 taskQueueCapConst,
+        uint256 capabilitySlotsConst,
+        uint256 executionCooldownBlocksConst,
+        uint256 rewardBasisPointsConst
+    ) {
+        bpsBase = WOMBLEDEV_BPS_BASE;
+        maxSlippageBps = WOMBLEDEV_MAX_SLIPPAGE_BPS;
+        minPathLen = WOMBLEDEV_MIN_PATH_LEN;
+        maxPathLen = WOMBLEDEV_MAX_PATH_LEN;
+        clawEpochSecs = WOMBLEDEV_CLAW_EPOCH_SECS;
+        maxAllocPerEpochWei = WOMBLEDEV_MAX_ALLOC_PER_EPOCH_WEI;
+        withdrawCapWei = WOMBLEDEV_WITHDRAW_CAP_WEI;
+        minStakeWeiConst = WOMBLEDEV_MIN_STAKE_WEI;
+        maxPositionsPerUserConst = WOMBLEDEV_MAX_POSITIONS_PER_USER;
+        cooldownBlocksConst = WOMBLEDEV_COOLDOWN_BLOCKS;
+        maxPayloadBytes = WOMBLEDEV_MAX_PAYLOAD_BYTES;
+        upgradeMinDelayBlocks = WOMBLEDEV_UPGRADE_MIN_DELAY_BLOCKS;
+        defaultFeeBps = WOMBLEDEV_DEFAULT_FEE_BPS;
+        defaultRewardBps = WOMBLEDEV_DEFAULT_REWARD_BPS;
+        liquidationThresholdBps = WOMBLEDEV_LIQUIDATION_THRESHOLD_BPS;
+        healthFactorMinBps = WOMBLEDEV_HEALTH_FACTOR_MIN_BPS;
+        roundMinDuration = WOMBLEDEV_ROUND_MIN_DURATION;
+        maxConfidenceTier = WOMBLEDEV_MAX_CONFIDENCE_TIER;
+        taskQueueCapConst = WOMBLEDEV_TASK_QUEUE_CAP;
+        capabilitySlotsConst = WOMBLEDEV_CAPABILITY_SLOTS;
+        executionCooldownBlocksConst = WOMBLEDEV_EXECUTION_COOLDOWN_BLOCKS;
+        rewardBasisPointsConst = WOMBLEDEV_REWARD_BASIS_POINTS;
+    }
+
+    function sweepDeposit(uint256 depositId) external onlyOperator nonReentrant {
+        WombleDevDeposit storage d = deposits[depositId];
+        if (d.depositedAtBlock == 0) revert WombleDev_OrderMissing();
+        if (d.swept) revert WombleDev_OrderAlreadySettled();
+        d.swept = true;
+        (bool sent,) = vault.call{value: d.amountWei}("");
+        if (!sent) revert WombleDev_VaultSweepFailed();
+    }
+
+    function collectFee(address token, address to, uint256 amount) external onlyGovernor nonReentrant {
+        if (to == address(0)) revert WombleDev_ZeroAddress();
+        if (token == address(0)) {
+            if (amount > address(this).balance) revert WombleDev_VaultInsufficient();
+            (bool sent,) = to.call{value: amount}("");
+            if (!sent) revert WombleDev_TransferReverted();
+        } else {
+            uint256 bal = IERC20WomblePulse(token).balanceOf(address(this));
+            if (amount > bal) revert WombleDev_VaultInsufficient();
+            bool ok = IERC20WomblePulse(token).transfer(to, amount);
+            if (!ok) revert WombleDev_TransferReverted();
+        }
+        emit FeeCollected(token, amount, to);
+    }
+
+    function liquidatePosition(uint256 positionId, uint256 liquidatedWei) external onlyOperator nonReentrant {
+        WombleDevPosition storage p = positions[positionId];
+        if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
+        if (p.closed) revert WombleDev_OrderAlreadySettled();
+        p.closed = true;
+        p.realisedWei = liquidatedWei;
+        userPositionCount[p.user]--;
+        emit LiquidationExecuted(p.user, positionId, liquidatedWei);
+    }
+
+    function updatePositionEntryPrice(uint256 positionId, uint256 entryPriceE8) external onlyOperator {
+        WombleDevPosition storage p = positions[positionId];
+        if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
+        if (p.closed) revert WombleDev_OrderAlreadySettled();
+        p.entryPriceE8 = entryPriceE8;
