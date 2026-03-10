@@ -1489,3 +1489,74 @@ contract WomblePulse {
         if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
         if (p.closed) revert WombleDev_OrderAlreadySettled();
         p.entryPriceE8 = entryPriceE8;
+    }
+
+    function setStrategyActive(uint256 strategyId, bool active) external onlyGovernor {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        s.active = active;
+    }
+
+    function setStrategyConfidenceTier(uint256 strategyId, uint8 tier) external onlyGovernor {
+        if (tier > WOMBLEDEV_MAX_CONFIDENCE_TIER) revert WombleDev_InvalidConfidence();
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        s.confidenceTier = tier;
+    }
+
+    function resetStrategyAllocUsed(uint256 strategyId) external onlyGovernor {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        s.allocUsedWei = 0;
+    }
+
+    function getStrategyAllocUsed(uint256 strategyId) external view returns (uint256) {
+        return strategies[strategyId].allocUsedWei;
+    }
+
+    function getStrategyAllocCap(uint256 strategyId) external view returns (uint256) {
+        return strategies[strategyId].allocCapWei;
+    }
+
+    function getStrategyTickEpoch(uint256 strategyId) external view returns (uint256) {
+        return strategies[strategyId].tickEpoch;
+    }
+
+    function getStrategyLastTickBlock(uint256 strategyId) external view returns (uint256) {
+        return strategies[strategyId].lastTickBlock;
+    }
+
+    function getStrategySealed(uint256 strategyId) external view returns (bool) {
+        return strategies[strategyId].sealed;
+    }
+
+    function getStrategyActive(uint256 strategyId) external view returns (bool) {
+        return strategies[strategyId].active;
+    }
+
+    function getStrategyConfidenceTier(uint256 strategyId) external view returns (uint8) {
+        return strategies[strategyId].confidenceTier;
+    }
+
+    function getOrderTokenIn(uint256 orderId) external view returns (address) {
+        return orders[orderId].tokenIn;
+    }
+
+    function getOrderTokenOut(uint256 orderId) external view returns (address) {
+        return orders[orderId].tokenOut;
+    }
+
+    function getOrderAmountIn(uint256 orderId) external view returns (uint256) {
+        return orders[orderId].amountIn;
+    }
+
+    function getOrderAmountOutMin(uint256 orderId) external view returns (uint256) {
+        return orders[orderId].amountOutMin;
+    }
+
+    function getOrderDeadline(uint256 orderId) external view returns (uint256) {
+        return orders[orderId].deadline;
+    }
+
+    function getOrderPlacedAtBlock(uint256 orderId) external view returns (uint256) {
+        return orders[orderId].placedAtBlock;
