@@ -1702,3 +1702,74 @@ contract WomblePulse {
 
     function getPromptToRound(bytes32 promptDigest) external view returns (uint256) {
         return promptToRound[promptDigest];
+    }
+
+    function getExecutionCountByAddress(address user) external view returns (uint256) {
+        return executionCountByAddress[user];
+    }
+
+    function getTaskIdToQueueIndex(bytes32 taskHash) external view returns (uint256) {
+        return taskIdToQueueIndex[taskHash];
+    }
+
+    function computeFeeFromAmount(uint256 amountWei) external view returns (uint256) {
+        return (amountWei * feeBps) / WOMBLEDEV_BPS_BASE;
+    }
+
+    function computeRewardFromAmount(uint256 amountWei) external view returns (uint256) {
+        return (amountWei * rewardBasisPoints) / WOMBLEDEV_BPS_BASE;
+    }
+
+    function computeSlippageBounded(uint256 amountOut, uint256 maxSlippageBps) external pure returns (uint256 minOut) {
+        if (maxSlippageBps > WOMBLEDEV_BPS_BASE) revert WombleDev_InvalidBps();
+        minOut = (amountOut * (WOMBLEDEV_BPS_BASE - maxSlippageBps)) / WOMBLEDEV_BPS_BASE;
+    }
+
+    function validatePathLength(uint256 pathLen) external pure returns (bool) {
+        return pathLen >= WOMBLEDEV_MIN_PATH_LEN && pathLen <= WOMBLEDEV_MAX_PATH_LEN;
+    }
+
+    function validateBps(uint256 bps) external pure returns (bool) {
+        return bps <= WOMBLEDEV_BPS_BASE;
+    }
+
+    function validateConfidenceTier(uint8 tier) external pure returns (bool) {
+        return tier <= WOMBLEDEV_MAX_CONFIDENCE_TIER;
+    }
+
+    function validateOrderDeadline(uint256 orderId) external view returns (bool) {
+        return block.timestamp <= orders[orderId].deadline;
+    }
+
+    function validatePositionOpen(address user) external view returns (bool) {
+        if (userStakeWei[user] < minStakeWei) return false;
+        if (agentsSuspended[user]) return false;
+        if (userPositionCount[user] >= maxPositionsPerUser) return false;
+        return true;
+    }
+
+    function validateWithdrawCap(uint256 additionalWei) external view returns (bool) {
+        return totalWithdrawnWei + additionalWei <= WOMBLEDEV_WITHDRAW_CAP_WEI;
+    }
+
+    function hashOrder(uint256 orderId) external view returns (bytes32) {
+        WombleDevOrder storage o = orders[orderId];
+        if (o.placedAtBlock == 0) revert WombleDev_OrderMissing();
+        return keccak256(abi.encodePacked(
+            o.tokenIn,
+            o.tokenOut,
+            o.amountIn,
+            o.amountOutMin,
+            o.deadline,
+            o.placedAtBlock
+        ));
+    }
+
+    function hashStrategy(uint256 strategyId) external view returns (bytes32) {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        return keccak256(abi.encodePacked(
+            s.allocCapWei,
+            s.allocUsedWei,
+            s.tickEpoch,
+            s.lastTickBlock,
