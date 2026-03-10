@@ -1063,3 +1063,74 @@ contract WomblePulse {
             r.completed
         );
     }
+
+    receive() external payable {}
+
+    // -------------------------------------------------------------------------
+    // Extended swap and path helpers (multi-hop, ETH pairs)
+    // -------------------------------------------------------------------------
+
+    function executeSwapExactTokensForETH(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external onlyOperator nonReentrant whenClawNotPaused returns (uint256 amountOut) {
+        if (amountIn == 0) revert WombleDev_ZeroAmount();
+        if (tokenIn == address(0)) revert WombleDev_ZeroAddress();
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = weth;
+        if (IERC20WomblePulse(tokenIn).balanceOf(vault) < amountIn) revert WombleDev_VaultInsufficient();
+        IERC20WomblePulse(tokenIn).transferFrom(vault, address(this), amountIn);
+        IERC20WomblePulse(tokenIn).approve(router, amountIn);
+        uint256 balanceBefore = address(vault).balance;
+        try IWomblePulseRouter(router).swapExactTokensForETH(amountIn, amountOutMin, path, vault, deadline) returns (uint256[] memory amounts) {
+            amountOut = amounts[amounts.length - 1];
+        } catch {
+            IERC20WomblePulse(tokenIn).approve(router, 0);
+            bool refund = IERC20WomblePulse(tokenIn).transfer(vault, amountIn);
+            if (!refund) revert WombleDev_TransferReverted();
+            revert WombleDev_RouterReverted();
+        }
+        IERC20WomblePulse(tokenIn).approve(router, 0);
+        uint256 balanceAfter = address(vault).balance;
+        if (balanceAfter <= balanceBefore) revert WombleDev_TransferReverted();
+        amountOut = balanceAfter - balanceBefore;
+        return amountOut;
+    }
+
+    function executeSwapExactETHForTokens(
+        address tokenOut,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external onlyOperator payable nonReentrant whenClawNotPaused returns (uint256 amountOut) {
+        if (msg.value == 0) revert WombleDev_ZeroAmount();
+        if (tokenOut == address(0)) revert WombleDev_ZeroAddress();
+        address[] memory path = new address[](2);
+        path[0] = weth;
+        path[1] = tokenOut;
+        uint256 balanceBefore = IERC20WomblePulse(tokenOut).balanceOf(vault);
+        try IWomblePulseRouter(router).swapExactETHForTokens{value: msg.value}(amountOutMin, path, vault, deadline) returns (uint256[] memory amounts) {
+            amountOut = amounts[amounts.length - 1];
+        } catch {
+            (bool sent,) = msg.sender.call{value: msg.value}("");
+            if (!sent) revert WombleDev_TransferReverted();
+            revert WombleDev_RouterReverted();
+        }
+        uint256 balanceAfter = IERC20WomblePulse(tokenOut).balanceOf(vault);
+        if (balanceAfter <= balanceBefore) revert WombleDev_TransferReverted();
+        amountOut = balanceAfter - balanceBefore;
+        return amountOut;
+    }
+
+    function placeOrderMultiHop(
+        address[] calldata path,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external onlyOperator whenClawNotPaused returns (uint256 orderId) {
+        if (path.length < WOMBLEDEV_MIN_PATH_LEN || path.length > WOMBLEDEV_MAX_PATH_LEN) revert WombleDev_PathLengthInvalid();
+        if (amountIn == 0) revert WombleDev_ZeroAmount();
+        if (deadline <= block.timestamp) revert WombleDev_DeadlinePassed();
+        for (uint256 i = 0; i < path.length; i++) {
