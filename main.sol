@@ -424,3 +424,74 @@ contract WomblePulse {
     modifier nonReentrant() {
         if (_reentrancyLock != 0) revert WombleDev_Reentrant();
         _reentrancyLock = 1;
+        _;
+        _reentrancyLock = 0;
+    }
+
+    modifier whenNotPaused() {
+        if (clawPaused) revert WombleDev_ClawPaused();
+        _;
+    }
+
+    constructor() {
+        governor = address(0xA43e9B5c7D2f1E8a90bC4d6E1F73a9B2c4D8e1f0);
+        treasury = address(0x6Bf2D1a9C4e7F0b3A8d5E2c1F9a4B7d0E3c6A1f8);
+        relay = address(0xC8a1E4d7B2f9A6c3D0e5F8b1A4d7C2e9F6b3A0d5);
+        attestationOracle = address(0x1F7c4A9e2D5b8C1f0E3a6D9b2C5e8F1a4D7c0B3e);
+        vault = address(0x9D2b5E8a1C4f7A0d3B6e9F2c5A8d1E4b7C0f3D6a);
+        operator = address(0xE4a7C0d3F6b9A2e5D8c1B4f7A0d3E6b9C2f5A8d1);
+        router = address(0xB1e4D7a0C3f6A9d2E5b8F1c4A7d0E3b6C9f2A5d8);
+        weth = address(0xF6c3A0d7E4b1C8f5A2d9E6b3F0a7D4c1B8e5A2d9);
+        genesisBlock = block.number;
+        domainSeparator = bytes32(WOMBLEDEV_DOMAIN_TAG);
+        taskQueueCap = WOMBLEDEV_TASK_QUEUE_CAP;
+        capabilitySlots = WOMBLEDEV_CAPABILITY_SLOTS;
+        executionCooldownBlocks = WOMBLEDEV_EXECUTION_COOLDOWN_BLOCKS;
+        rewardBasisPoints = WOMBLEDEV_REWARD_BASIS_POINTS;
+        feeBps = WOMBLEDEV_DEFAULT_FEE_BPS;
+        minStakeWei = WOMBLEDEV_MIN_STAKE_WEI;
+        maxPositionsPerUser = WOMBLEDEV_MAX_POSITIONS_PER_USER;
+        cooldownBlocks = WOMBLEDEV_COOLDOWN_BLOCKS;
+        epochLengthSecs = WOMBLEDEV_CLAW_EPOCH_SECS;
+    }
+
+    function setClawPaused(bool paused) external onlyGovernor {
+        clawPaused = paused;
+        emit ClawPausedToggled(paused);
+    }
+
+    function setRouter(address newRouter) external onlyGovernor {
+        if (newRouter == address(0)) revert WombleDev_ZeroAddress();
+        address prev = router;
+        router = newRouter;
+        emit RouterSet(prev, newRouter);
+    }
+
+    function setOperator(address newOperator) external onlyGovernor {
+        if (newOperator == address(0)) revert WombleDev_ZeroAddress();
+        address prev = operator;
+        operator = newOperator;
+        emit OperatorSet(prev, newOperator);
+    }
+
+    function setVault(address newVault) external onlyGovernor {
+        if (newVault == address(0)) revert WombleDev_ZeroAddress();
+        address prev = vault;
+        vault = newVault;
+        emit GovernorSet(prev, newVault);
+    }
+
+    function setFeeBps(uint256 newBps) external onlyGovernor {
+        if (newBps > WOMBLEDEV_BPS_BASE) revert WombleDev_InvalidBps();
+        uint256 prev = feeBps;
+        feeBps = newBps;
+        emit FeeBpsUpdated(prev, newBps);
+    }
+
+    function setMinStakeWei(uint256 newMin) external onlyGovernor {
+        uint256 prev = minStakeWei;
+        minStakeWei = newMin;
+        emit MinStakeUpdated(prev, newMin);
+    }
+
+    function setMaxPositionsPerUser(uint256 newMax) external onlyGovernor {
