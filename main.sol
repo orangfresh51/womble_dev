@@ -1347,3 +1347,74 @@ contract WomblePulse {
             if (s.sealed) revert WombleDev_StrategySealed();
             s.tickEpoch++;
             s.lastTickBlock = block.number;
+            emit StrategyTick(strategyIds[i], s.tickEpoch, s.allocUsedWei, uint40(block.number));
+        }
+    }
+
+    function batchCancelOrders(uint256[] calldata orderIds) external onlyOperator {
+        for (uint256 i = 0; i < orderIds.length; i++) {
+            WombleDevOrder storage o = orders[orderIds[i]];
+            if (o.placedAtBlock == 0) revert WombleDev_OrderMissing();
+            if (o.filled) revert WombleDev_OrderAlreadySettled();
+            o.cancelled = true;
+            emit OrderCancelled(orderIds[i], block.number);
+        }
+    }
+
+    function computeAllocRemaining(uint256 strategyId) external view returns (uint256) {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        if (s.allocUsedWei >= s.allocCapWei) return 0;
+        return s.allocCapWei - s.allocUsedWei;
+    }
+
+    function computeWithdrawCapRemaining() external view returns (uint256) {
+        if (totalWithdrawnWei >= WOMBLEDEV_WITHDRAW_CAP_WEI) return 0;
+        return WOMBLEDEV_WITHDRAW_CAP_WEI - totalWithdrawnWei;
+    }
+
+    function computeCooldownBlocksRemaining(address user) external view returns (uint256) {
+        uint256 last = lastExecutionBlock[user];
+        if (last == 0) return 0;
+        if (block.number >= last + cooldownBlocks) return 0;
+        return (last + cooldownBlocks) - block.number;
+    }
+
+    function computeCanExecuteTask(address user) external view returns (bool) {
+        if (block.number < lastExecutionBlock[user] + executionCooldownBlocks) return false;
+        return true;
+    }
+
+    function computeHealthFactorBps(address user) external view returns (uint256) {
+        uint256 stake = userStakeWei[user];
+        if (stake == 0) return WOMBLEDEV_HEALTH_FACTOR_MIN_BPS;
+        return WOMBLEDEV_HEALTH_FACTOR_MIN_BPS;
+    }
+
+    function computeLiquidationThresholdBps() external pure returns (uint256) {
+        return WOMBLEDEV_LIQUIDATION_THRESHOLD_BPS;
+    }
+
+    function advanceEpochView(uint256 strategyId) external view returns (uint256 nextTickEpoch, uint256 nextAllocUsedWei) {
+        WombleDevStrategy storage s = strategies[strategyId];
+        if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+        nextTickEpoch = s.tickEpoch + 1;
+        nextAllocUsedWei = s.allocUsedWei;
+    }
+
+    function getConstants() external pure returns (
+        uint256 bpsBase,
+        uint256 maxSlippageBps,
+        uint256 minPathLen,
+        uint256 maxPathLen,
+        uint256 clawEpochSecs,
+        uint256 maxAllocPerEpochWei,
+        uint256 withdrawCapWei,
+        uint256 minStakeWeiConst,
+        uint256 maxPositionsPerUserConst,
+        uint256 cooldownBlocksConst,
+        uint256 maxPayloadBytes,
+        uint256 upgradeMinDelayBlocks,
+        uint256 defaultFeeBps,
+        uint256 defaultRewardBps,
+        uint256 liquidationThresholdBps,
