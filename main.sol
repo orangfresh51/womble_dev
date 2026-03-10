@@ -566,3 +566,74 @@ contract WomblePulse {
         }
         IERC20WomblePulse(o.tokenIn).approve(router, 0);
         uint256 balanceAfter = IERC20WomblePulse(o.tokenOut).balanceOf(vault);
+        if (balanceAfter <= balanceBefore) revert WombleDev_TransferReverted();
+        amountOut = balanceAfter - balanceBefore;
+        o.filled = true;
+        emit OrderFilled(orderId, amountOut, block.number);
+        return amountOut;
+    }
+
+    function cancelOrder(uint256 orderId) external onlyOperator {
+        WombleDevOrder storage o = orders[orderId];
+        if (o.placedAtBlock == 0) revert WombleDev_OrderMissing();
+        if (o.filled) revert WombleDev_OrderAlreadySettled();
+        o.cancelled = true;
+        emit OrderCancelled(orderId, block.number);
+    }
+
+    function executeSwapDirect(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 deadline
+    ) external onlyOperator nonReentrant whenClawNotPaused returns (uint256 amountOut) {
+        if (amountIn == 0) revert WombleDev_ZeroAmount();
+        if (tokenIn == address(0) || tokenOut == address(0)) revert WombleDev_ZeroAddress();
+        address[] memory path = new address[](2);
+        path[0] = tokenIn;
+        path[1] = tokenOut;
+        if (IERC20WomblePulse(tokenIn).balanceOf(vault) < amountIn) revert WombleDev_VaultInsufficient();
+        IERC20WomblePulse(tokenIn).transferFrom(vault, address(this), amountIn);
+        IERC20WomblePulse(tokenIn).approve(router, amountIn);
+        uint256 balanceBefore = IERC20WomblePulse(tokenOut).balanceOf(vault);
+        try IWomblePulseRouter(router).swapExactTokensForTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            vault,
+            deadline
+        ) returns (uint256[] memory amounts) {
+            amountOut = amounts[amounts.length - 1];
+        } catch {
+            IERC20WomblePulse(tokenIn).approve(router, 0);
+            bool refund = IERC20WomblePulse(tokenIn).transfer(vault, amountIn);
+            if (!refund) revert WombleDev_TransferReverted();
+            revert WombleDev_RouterReverted();
+        }
+        IERC20WomblePulse(tokenIn).approve(router, 0);
+        uint256 balanceAfter = IERC20WomblePulse(tokenOut).balanceOf(vault);
+        if (balanceAfter <= balanceBefore) revert WombleDev_TransferReverted();
+        amountOut = balanceAfter - balanceBefore;
+        return amountOut;
+    }
+
+    function topTreasury() external payable {
+        if (msg.value == 0) revert WombleDev_ZeroAmount();
+        (bool sent,) = treasury.call{value: msg.value}("");
+        if (!sent) revert WombleDev_TransferReverted();
+        emit TreasuryTopped(msg.sender, msg.value);
+    }
+
+    function withdrawTreasury(uint256 amountWei, address to) external onlyTreasury nonReentrant {
+        if (to == address(0)) revert WombleDev_ZeroAddress();
+        if (totalWithdrawnWei + amountWei > WOMBLEDEV_WITHDRAW_CAP_WEI) revert WombleDev_WithdrawOverCap();
+        totalWithdrawnWei += amountWei;
+        (bool sent,) = to.call{value: amountWei}("");
+        if (!sent) revert WombleDev_TransferReverted();
+        emit TreasuryWithdrawn(to, amountWei);
+    }
+
+    function allocateClaw(uint256 strategyId, address beneficiary, uint256 amountWei) external onlyOperator whenClawNotPaused nonReentrant {
+        if (beneficiary == address(0)) revert WombleDev_ZeroAddress();
+        if (amountWei == 0) revert WombleDev_ZeroAmount();
