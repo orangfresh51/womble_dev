@@ -1560,3 +1560,74 @@ contract WomblePulse {
 
     function getOrderPlacedAtBlock(uint256 orderId) external view returns (uint256) {
         return orders[orderId].placedAtBlock;
+    }
+
+    function getPositionUser(uint256 positionId) external view returns (address) {
+        return positions[positionId].user;
+    }
+
+    function getPositionStrategyId(uint256 positionId) external view returns (uint256) {
+        return positions[positionId].strategyId;
+    }
+
+    function getPositionSizeWei(uint256 positionId) external view returns (uint256) {
+        return positions[positionId].sizeWei;
+    }
+
+    function getPositionOpenedAtBlock(uint256 positionId) external view returns (uint256) {
+        return positions[positionId].openedAtBlock;
+    }
+
+    function getPositionEntryPriceE8(uint256 positionId) external view returns (uint256) {
+        return positions[positionId].entryPriceE8;
+    }
+
+    function getPositionClosed(uint256 positionId) external view returns (bool) {
+        return positions[positionId].closed;
+    }
+
+    function getPositionRealisedWei(uint256 positionId) external view returns (uint256) {
+        return positions[positionId].realisedWei;
+    }
+
+    function getRoundPromptDigest(uint256 roundId) external view returns (bytes32) {
+        return rounds[roundId].promptDigest;
+    }
+
+    function getRoundResponseRoot(uint256 roundId) external view returns (bytes32) {
+        return rounds[roundId].responseRoot;
+    }
+
+    function getRoundStartedAt(uint256 roundId) external view returns (uint256) {
+        return rounds[roundId].startedAt;
+    }
+
+    function getRoundSealedAt(uint256 roundId) external view returns (uint256) {
+        return rounds[roundId].sealedAt;
+    }
+
+    function getRoundFinalized(uint256 roundId) external view returns (bool) {
+        return rounds[roundId].finalized;
+    }
+
+    function getRoundConfidenceTier(uint256 roundId) external view returns (uint8) {
+        return rounds[roundId].confidenceTier;
+    }
+
+    function getRoundProposer(uint256 roundId) external view returns (address) {
+        return rounds[roundId].proposer;
+    }
+
+    function getTaskTaskHash(uint256 taskIndex) external view returns (bytes32) {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        return taskQueue[taskIndex].taskHash;
+    }
+
+    function getTaskRequester(uint256 taskIndex) external view returns (address) {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        return taskQueue[taskIndex].requester;
+    }
+
+    function getTaskEnqueuedBlock(uint256 taskIndex) external view returns (uint256) {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        return taskQueue[taskIndex].enqueuedBlock;
