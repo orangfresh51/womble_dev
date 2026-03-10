@@ -1773,3 +1773,61 @@ contract WomblePulse {
             s.allocUsedWei,
             s.tickEpoch,
             s.lastTickBlock,
+            s.sealed,
+            s.active,
+            s.confidenceTier
+        ));
+    }
+
+    function hashPosition(uint256 positionId) external view returns (bytes32) {
+        WombleDevPosition storage p = positions[positionId];
+        if (p.openedAtBlock == 0) revert WombleDev_PositionNotFound();
+        return keccak256(abi.encodePacked(
+            p.user,
+            p.strategyId,
+            p.sizeWei,
+            p.openedAtBlock,
+            p.entryPriceE8,
+            p.closed,
+            p.realisedWei
+        ));
+    }
+
+    function hashRound(uint256 roundId) external view returns (bytes32) {
+        WombleDevInferenceRound storage r = rounds[roundId];
+        if (r.startedAt == 0) revert WombleDev_InvalidRoundId();
+        return keccak256(abi.encodePacked(
+            r.promptDigest,
+            r.responseRoot,
+            r.startedAt,
+            r.sealedAt,
+            r.finalized,
+            r.confidenceTier,
+            r.proposer
+        ));
+    }
+
+    function hashTask(uint256 taskIndex) external view returns (bytes32) {
+        if (taskIndex >= taskQueueIndex) revert WombleDev_InvalidRoundId();
+        WombleDevTaskEntry storage t = taskQueue[taskIndex];
+        return keccak256(abi.encodePacked(
+            t.taskHash,
+            t.requester,
+            t.enqueuedBlock,
+            t.priority,
+            t.executed,
+            t.executedAtBlock
+        ));
+    }
+
+    function hashCapability(uint256 slotIndex) external view returns (bytes32) {
+        if (slotIndex >= capabilitySlots) revert WombleDev_InvalidStrategyId();
+        WombleDevCapabilitySlot storage c = capabilityByIndex[slotIndex];
+        return keccak256(abi.encodePacked(
+            c.capabilityId,
+            c.attester,
+            c.attestedAtBlock,
+            c.revoked
+        ));
+    }
+}
