@@ -850,3 +850,74 @@ contract WomblePulse {
     }
 
     function withdrawStuckToken(address token, address to, uint256 amount) external onlyGovernor {
+        if (to == address(0)) revert WombleDev_ZeroAddress();
+        bool ok = IERC20WomblePulse(token).transfer(to, amount);
+        if (!ok) revert WombleDev_TransferReverted();
+    }
+
+    function openRound(bytes32 promptDigest) external whenClawNotPaused returns (uint256 roundId) {
+        if (promptToRound[promptDigest] != 0) revert WombleDev_DuplicateCommit();
+        roundCounter++;
+        roundId = roundCounter;
+        rounds[roundId] = WombleDevInferenceRound({
+            promptDigest: promptDigest,
+            responseRoot: bytes32(0),
+            startedAt: block.timestamp,
+            sealedAt: 0,
+            finalized: false,
+            confidenceTier: 0,
+            proposer: msg.sender
+        });
+        promptToRound[promptDigest] = roundId;
+        emit RoundOpened(roundId, promptDigest, msg.sender);
+        return roundId;
+    }
+
+    function sealRound(uint256 roundId, bytes32 responseRoot, uint8 confidenceTier) external onlyOperator {
+        WombleDevInferenceRound storage r = rounds[roundId];
+        if (r.startedAt == 0) revert WombleDev_InvalidRoundId();
+        if (r.finalized) revert WombleDev_RoundNotSealed();
+        if (confidenceTier > WOMBLEDEV_MAX_CONFIDENCE_TIER) revert WombleDev_InvalidConfidence();
+        r.responseRoot = responseRoot;
+        r.sealedAt = block.timestamp;
+        r.confidenceTier = confidenceTier;
+        emit RoundSealed(roundId, responseRoot, confidenceTier);
+    }
+
+    function finalizeRound(uint256 roundId) external onlyOperator {
+        WombleDevInferenceRound storage r = rounds[roundId];
+        if (r.startedAt == 0) revert WombleDev_InvalidRoundId();
+        if (r.sealedAt == 0) revert WombleDev_RoundNotSealed();
+        r.finalized = true;
+        emit RoundFinalized(roundId);
+    }
+
+    function registerAgent(bytes32 modelFingerprint) external {
+        emit AgentRegistered(msg.sender, modelFingerprint);
+    }
+
+    function suspendAgent(address agent, bool suspended) external onlyGovernor {
+        agentsSuspended[agent] = suspended;
+    }
+
+    function consumeNonce(bytes32 nonce) external onlyOperator {
+        if (nonceUsed[nonce]) revert WombleDev_NonceUsed();
+        nonceUsed[nonce] = true;
+        emit NonceConsumed(nonce, msg.sender);
+    }
+
+    function scheduleUpgrade(uint256 nextVersion) external onlyGovernor {
+        nextLogicVersion = nextVersion;
+        upgradeEffectiveBlock = block.number + WOMBLEDEV_UPGRADE_MIN_DELAY_BLOCKS;
+        emit UpgradeScheduled(nextVersion, upgradeEffectiveBlock);
+    }
+
+    function applyUpgrade() external onlyGovernor {
+        if (block.number < upgradeEffectiveBlock) revert WombleDev_EpochNotReached();
+        logicVersion = nextLogicVersion;
+        emit UpgradeApplied(logicVersion, block.number);
+    }
+
+    function enqueueTask(bytes32 taskHash, uint8 priority) external whenClawNotPaused returns (uint256 taskIndex) {
+        if (taskQueueIndex >= taskQueueCap) revert WombleDev_AllocOverflow();
+        taskQueue[taskQueueIndex] = WombleDevTaskEntry({
