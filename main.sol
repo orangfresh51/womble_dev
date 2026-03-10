@@ -1205,3 +1205,74 @@ contract WomblePulse {
     function isAgentSuspended(address agent) external view returns (bool) {
         return agentsSuspended[agent];
     }
+
+    function getLogicVersion() external view returns (uint256) {
+        return logicVersion;
+    }
+
+    function getNextLogicVersion() external view returns (uint256) {
+        return nextLogicVersion;
+    }
+
+    function getUpgradeEffectiveBlock() external view returns (uint256) {
+        return upgradeEffectiveBlock;
+    }
+
+    function getFeeBps() external view returns (uint256) {
+        return feeBps;
+    }
+
+    function getEpochLengthSecs() external view returns (uint256) {
+        return epochLengthSecs;
+    }
+
+    function getCooldownBlocks() external view returns (uint256) {
+        return cooldownBlocks;
+    }
+
+    function getMinStakeWei() external view returns (uint256) {
+        return minStakeWei;
+    }
+
+    function getMaxPositionsPerUser() external view returns (uint256) {
+        return maxPositionsPerUser;
+    }
+
+    function getTotalExecutions() external view returns (uint256) {
+        return totalExecutions;
+    }
+
+    function getTotalRewardDisbursed() external view returns (uint256) {
+        return totalRewardDisbursed;
+    }
+
+    function getTaskQueueIndex() external view returns (uint256) {
+        return taskQueueIndex;
+    }
+
+    function getGenesisBlock() external view returns (uint256) {
+        return genesisBlock;
+    }
+
+    function getDomainSeparator() external view returns (bytes32) {
+        return domainSeparator;
+    }
+
+    function getGovernor() external view returns (address) {
+        return governor;
+    }
+
+    function getTreasury() external view returns (address) {
+        return treasury;
+    }
+
+    function getRelay() external view returns (address) {
+        return relay;
+    }
+
+    function getAttestationOracle() external view returns (address) {
+        return attestationOracle;
+    }
+
+    function getVault() external view returns (address) {
+        return vault;
