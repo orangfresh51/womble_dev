@@ -1276,3 +1276,74 @@ contract WomblePulse {
 
     function getVault() external view returns (address) {
         return vault;
+    }
+
+    function getOperator() external view returns (address) {
+        return operator;
+    }
+
+    function getRouter() external view returns (address) {
+        return router;
+    }
+
+    function getClawPaused() external view returns (bool) {
+        return clawPaused;
+    }
+
+    function getOrderCounter() external view returns (uint256) {
+        return orderCounter;
+    }
+
+    function getAllocCounter() external view returns (uint256) {
+        return allocCounter;
+    }
+
+    function getSweepCounter() external view returns (uint256) {
+        return sweepCounter;
+    }
+
+    function getPositionCounter() external view returns (uint256) {
+        return positionCounter;
+    }
+
+    function getDepositCounter() external view returns (uint256) {
+        return depositCounter;
+    }
+
+    function getWithdrawRequestCounter() external view returns (uint256) {
+        return withdrawRequestCounter;
+    }
+
+    function getRoundCounter() external view returns (uint256) {
+        return roundCounter;
+    }
+
+    function batchAllocateClaw(
+        uint256[] calldata strategyIds,
+        address[] calldata beneficiaries,
+        uint256[] calldata amountsWei
+    ) external onlyOperator whenClawNotPaused nonReentrant {
+        if (strategyIds.length != beneficiaries.length || strategyIds.length != amountsWei.length) revert WombleDev_PathLengthInvalid();
+        for (uint256 i = 0; i < strategyIds.length; i++) {
+            if (beneficiaries[i] == address(0)) revert WombleDev_ZeroAddress();
+            if (amountsWei[i] == 0) revert WombleDev_ZeroAmount();
+            WombleDevStrategy storage s = strategies[strategyIds[i]];
+            if (!s.active) revert WombleDev_InvalidStrategyId();
+            if (s.sealed) revert WombleDev_StrategySealed();
+            if (s.allocUsedWei + amountsWei[i] > s.allocCapWei) revert WombleDev_AllocCapExceeded();
+            if (amountsWei[i] > WOMBLEDEV_MAX_ALLOC_PER_EPOCH_WEI) revert WombleDev_AllocOverflow();
+            s.allocUsedWei += amountsWei[i];
+            allocCounter++;
+            (bool sent,) = beneficiaries[i].call{value: amountsWei[i]}("");
+            if (!sent) revert WombleDev_VaultSweepFailed();
+            emit ClawAllocation(allocCounter, beneficiaries[i], amountsWei[i], strategyIds[i], uint40(block.number));
+        }
+    }
+
+    function batchTickStrategy(uint256[] calldata strategyIds) external onlyOperator {
+        for (uint256 i = 0; i < strategyIds.length; i++) {
+            WombleDevStrategy storage s = strategies[strategyIds[i]];
+            if (s.lastTickBlock == 0) revert WombleDev_InvalidStrategyId();
+            if (s.sealed) revert WombleDev_StrategySealed();
+            s.tickEpoch++;
+            s.lastTickBlock = block.number;
